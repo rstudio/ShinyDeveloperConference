@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <!-- Basic Page Needs
+================================================== -->
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+<!-- Mobile Specific Metas
+================================================== -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Title and meta description
+================================================== -->
+
+  <title>College Scorecard Shiny demo app</title>
+  <meta name="description" content="">
+  <meta property="og:description" content="" />
+
+<!--[if lt IE 9]>
+  <script src="assets/js/vendor/html5shiv.js"></script>
+  <script src="assets/js/vendor/respond.js"></script>
+  <script src="assets/js/vendor/selectivizr-min.js"></script>
+<![endif]-->
+
+<!-- Favicons
+================================================== -->
+  <!-- 128x128 -->
+  <link rel="shortcut icon" type="image/ico" href="assets/img/favicons/favicon.ico" />
+  <link rel="icon" type="image/png" href="assets/img/favicons/favicon.png" />
+
+  <!-- 192x192, as recommended for Android
+  http://updates.html5rocks.com/2014/11/Support-for-theme-color-in-Chrome-39-for-Android
+  -->
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/img/favicons/favicon-192.png" />
+
+  <!-- 57x57 (precomposed) for iPhone 3GS, pre-2011 iPod Touch and older Android devices -->
+  <link rel="apple-touch-icon-precomposed" href="assets/img/favicons/favicon-57.png">
+  <!-- 72x72 (precomposed) for 1st generation iPad, iPad 2 and iPad mini -->
+  <link rel="apple-touch-icon-precomposed" sizes="72x72" href="assets/img/favicons/favicon-72.png">
+  <!-- 114x114 (precomposed) for iPhone 4, 4S, 5 and post-2011 iPod Touch -->
+  <link rel="apple-touch-icon-precomposed" sizes="114x114" href="assets/img/favicons/favicon-114.png">
+  <!-- 144x144 (precomposed) for iPad 3rd and 4th generation -->
+  <link rel="apple-touch-icon-precomposed" sizes="144x144" href="assets/img/favicons/favicon-144.png">
+
+<!-- CSS
+================================================== -->
+  <link rel="stylesheet" href="assets/css/google-fonts.css">
+  <link rel="stylesheet" href="assets/css/main.css">
+
+  <style type="text/css">
+  header {
+    display: none;
+    background-color: #112e51;
+    background-image: url(header-image.jpg);
+    background-size: cover;
+    background-position: center;
+    text-align: center;
+    color: white;
+    text-shadow: rgba(0, 0, 0, 0.7) 0 0 30px;
+  }
+  @media screen {
+    header {
+      display: block;
+    }
+  }
+  header h3 {
+    padding: 100px 10px 10px 10px;
+    margin: 0;
+  }
+  header p {
+    margin: 0;
+    padding: 0 10px 80px 10px;
+  }
+  header p a, header p a:active, header p a:visited {
+    color: white;
+  }
+  section#loading-spinner {
+    padding: 100px;
+    text-align: center;
+  }
+  section#college-search {
+    padding-top: 20px;
+    padding-bottom: 20px;
+    background-color: #f1f1f1;
+  }
+  div[role=search] {
+    width: 550px;
+    max-width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  section {
+    padding: 30px 0;
+  }
+  section#school-details {
+    position: relative;
+    padding-top: 0;
+  }
+  .school-summary {
+    font-family: 'Merriweather', 'Georgia', 'Times New Roman', serif;
+    font-size: 20px;
+  }
+  .school-badges {
+    margin-top: 30px;
+    color: #5C626C;
+  }
+  .school-badges>div {
+    display: inline-block;
+    width: 60px;
+    text-align: center;
+  }
+  .school-badges span {
+    font-size: 13px;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  #map {
+    display: none;
+  }
+  @media screen and (min-width: 600px) {
+    #map {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 50%;
+      right: 0;
+      bottom: 0;
+    }
+  }
+  @media screen and (max-width: 600px) {
+    #map {
+      display: block;
+      position: relative;
+      margin-top: 30px;
+      margin-bottom: -30px;
+      width: 100% !important;
+      height: 400px !important;
+    }
+  }
+  section#school-details-2 {
+  }
+  /*
+  section#school-details-2 .usa-width-one-third {
+    background-color: #F0F0F0;
+    padding-left: 30px;
+    padding-bottom: 20px;
+  }
+  */
+  section#school-details-2 h6 {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 0;
+  }
+  section#school-details-2 div.shiny-html-output {
+    font-size: 48px;
+    color: #2BB673;
+  }
+  section#school-details-2 .nat_avg {
+    font-size: 13px;
+    color: #5b616b;
+    text-transform: uppercase;
+  }
+  section#school-details-4 {
+    background-color: #323A45;
+    color: #FFFFFF;
+    min-height: 30px;
+  }
+  #cost_by_income th {
+    text-align: left;
+  }
+  #cost_by_income th, #cost_by_income td {
+    padding: 0.8rem;
+  }
+  #cost_by_income th+th, #cost_by_income td+td {
+    text-align: right;
+  }
+  
+  #cost_by_year {
+    margin: 34px 0;
+  }
+  
+  footer {
+    padding: 20px 0;
+    background-color: #f1f1f1 !important;
+    display: none;
+  }
+  footer p {
+    font-size: 14px;
+  }
+  footer a {
+    text-decoration: underline;
+  }
+  
+  .github-ribbon:hover img {
+    opacity: 1.0 !important;
+    transition: opacity 0.5s;
+  }
+  
+  [data-display-if] {
+    display: none;
+  }
+  </style>
+  <script>
+    $(document).on("keydown", "#search", function(e) {
+      if (e.which == 13) {
+        $("#search_button").click();
+      }
+    });
+  </script>
+
+  </head>
+
+  <body>
+
+    <header role="banner">
+      <h3 class="usa-display">College Scorecard</h3>
+      <p class="usa-font-lead">A <a href="http://shiny.rstudio.com/">Shiny</a> demo app by <a href="https://www.rstudio.com/">RStudio</a></p>
+    </header>
+
+    <section id="college-search">
+      <div class="usa-grid">
+        <div class="usa-width-one-whole">
+          <form class="usa-search usa-search-big" onsubmit="return false;">
+            <div role="search">
+              <label class="usa-sr-only" for="search-field-big">College name</label>
+              <input id="search" type="text" name="search" class="usa-search-input"
+                placeholder="College or city, e.g. Stanford or Boston"/>
+              <button id="search_button" type="button" class="usa-search-submit action-button">
+                <span class="usa-search-submit-text">Search</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+    
+    <section id="loading-spinner" data-display-if="!output.app_mode">
+      <div class="usa-grid">
+        <div class="usa-width-one-whole">
+          <img src="ring-alt.svg"/>
+        </div>
+      </div>
+    </section>
+
+    <section id="college-search-results" data-display-if="output.app_mode === 'search'">
+      <div class="usa-grid">
+        <div class="usa-width-one-whole">
+          {{ uiOutput("search_results") }}
+        </div>
+      </div>
+    </section>
+    
+    <section id="school-details" data-display-if="output.app_mode === 'details'">
+      <div class="usa-grid">
+        
+        <div class="usa-width-one-half">
+          <h2>{{ textOutput("school_name", inline = TRUE) }}</h2>
+          <div class="school-summary school-city">
+            {{ textOutput("school_city", inline = TRUE) }}
+          </div>
+          <div class="school-summary school-size">
+            {{ textOutput("school_size", inline = TRUE) }}
+          </div>
+          <div class="school-summary school-url">
+            {{ uiOutput("school_url", inline = TRUE) }}
+          </div>
+          <div class="school-badges">
+            {{ uiOutput("degree_type") }}
+            {{ uiOutput("school_ownership") }}
+            {{ uiOutput("school_locale") }}
+            {{ uiOutput("school_size_class") }}
+          </div>
+        </div>
+      </div>
+      {{ leafletOutput("map", width = "auto", height = "auto") }}
+    </section>
+      
+    <section id="school-details-2" data-display-if="output.app_mode === 'details'">
+      <div class="usa-grid">
+        
+        <div class="usa-width-one-third">
+          <h6>Average Annual Cost</h6>
+          {{ uiOutput("cost") }}
+          <div class="nat_avg">National average: $15,628.42</div>
+        </div>
+        <div class="usa-width-one-third">
+          <h6>Admission Rate</h6>
+          {{ uiOutput("admit_rate") }}
+          <div class="nat_avg">National average: 68.24%</div>
+        </div>
+        <div class="usa-width-one-third">
+          <h6>Salary After Attending</h6>
+          {{ uiOutput("salary") }}
+          <div class="nat_avg">National average: $33,137.77</div>
+        </div>
+        
+      </div>
+    </section>
+    
+    <section id="school-details-4" data-display-if="output.app_mode === 'details'">
+      <div class="usa-grid">
+        <div class="usa-width-one-half">
+          <h3>Average annual cost, by family income</h3>
+          {{ tableOutput("cost_by_income") }}
+        </div>
+        <div class="usa-width-one-half">
+          <h3>Average annual cost, over time</h3>
+          {{ plotOutput("cost_by_year", height = 235) }}
+        </div>
+      </div>
+    </section>
+    
+    {{ uiOutput("extras") }}
+    
+    <footer>
+      <div class="usa-grid">
+        <div class="usa-width-one-sixth">
+          <br/>
+        </div>
+        <div class="usa-width-one-third">
+          <p>
+            This app was written using <a href="http://shiny.rstudio.com/">Shiny</a>, a web framework for <a href="http://www.r-project.org/">R</a>. You can find the source code for this app at <a href="https://github.com/jcheng5/scorecard-app">@jcheng5/scorecard-app</a>.
+          </p>
+        </div>
+        <div class="usa-width-one-third">
+          <p>
+            Inspired by: <a href="https://collegescorecard.ed.gov/">College Scorecard</a><br/>
+            Data: <a href="https://collegescorecard.ed.gov/data/">College Scorecard dataset</a><br/>
+            Style: <a href="https://playbook.cio.gov/designstandards/">U.S. Web Design Standards</a>
+          </p>
+        </div>
+      </div>
+    </footer>
+
+    <a class="github-ribbon" href="https://github.com/jcheng5/scorecard-app"><img style="position: absolute; top: 0; right: 0; border: 0; opacity: 0.6; transition: opacity 0.5s;" src="https://camo.githubusercontent.com/a6677b08c955af8400f44c6298f40e7d19cc5b2d/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f677261795f3664366436642e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png"></a>
+  </body>
+
+</html>

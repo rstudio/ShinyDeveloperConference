@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Debugging with Shiny</title>
+
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <meta name="generator" content="pandoc" />
+
+
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+
+  <link rel="stylesheet" media="all" href="shiny-debugging_files/ioslides-13.5.1/fonts/fonts.css">
+
+  <link rel="stylesheet" media="all" href="shiny-debugging_files/ioslides-13.5.1/theme/css/default.css">
+  <link rel="stylesheet" media="only screen and (max-device-width: 480px)" href="shiny-debugging_files/ioslides-13.5.1/theme/css/phone.css">
+
+  <base target="_blank">
+
+  <script type="text/javascript">
+    var SLIDE_CONFIG = {
+      // Slide settings
+      settings: {
+                title: 'Debugging with Shiny',
+                        useBuilds: true,
+        usePrettify: true,
+        enableSlideAreas: true,
+        enableTouch: true,
+                favIcon: 'shiny-debugging_files/logo.png',
+              },
+
+      // Author information
+      presenters: [
+            {
+        name:  'Jonathan McPherson' ,
+        company: '',
+        gplus: '',
+        twitter: '',
+        www: '',
+        github: ''
+      },
+            ]
+    };
+  </script>
+
+  <style type="text/css">
+
+    b, strong {
+      font-weight: bold;
+    }
+
+    em {
+      font-style: italic;
+    }
+
+    slides > slide {
+      -webkit-transition: all 0.4s ease-in-out;
+      -moz-transition: all 0.4s ease-in-out;
+      -o-transition: all 0.4s ease-in-out;
+      transition: all 0.4s ease-in-out;
+    }
+
+    .auto-fadein {
+      -webkit-transition: opacity 0.6s ease-in;
+      -webkit-transition-delay: 0.4s;
+      -moz-transition: opacity 0.6s ease-in 0.4s;
+      -o-transition: opacity 0.6s ease-in 0.4s;
+      transition: opacity 0.6s ease-in 0.4s;
+      opacity: 0;
+    }
+
+    slides > slide:not(.nobackground):before {
+      font-size: 12pt;
+      content: "";
+      position: absolute;
+      bottom: 20px;
+      left: 60px;
+      background: url(shiny-debugging_files/logo.png) no-repeat 0 50%;
+      -webkit-background-size: 30px 30px;
+      -moz-background-size: 30px 30px;
+      -o-background-size: 30px 30px;
+      background-size: 30px 30px;
+      padding-left: 40px;
+      height: 30px;
+      line-height: 1.9;
+    }
+  </style>
+
+  <link rel="stylesheet" href="shiny-slides.css" type="text/css" />
+
+
+</head>
+
+<body style="opacity: 0">
+
+<slides>
+
+  <slide class="title-slide segue nobackground">
+        <aside class="gdbar"><img src="shiny-debugging_files/logo.png"></aside>
+        <!-- The content of this hgroup is replaced programmatically through the slide_config.json. -->
+    <hgroup class="auto-fadein">
+      <h1 data-config-title><!-- populated from slide_config.json --></h1>
+      <h2 data-config-subtitle><!-- populated from slide_config.json --></h2>
+      <p data-config-presenter><!-- populated from slide_config.json --></p>
+          </hgroup>
+  </slide>
+
+<slide class='segue dark nobackground'><hgroup class = 'auto-fadein'><h2>Overview</h2></hgroup><article  id="overview">
+
+</article></slide><slide class=''><hgroup><h2>Goals</h2></hgroup><article  id="goals">
+
+<h3>You will learn:</h3>
+
+<ul class = 'build'>
+<li>Tools for finding bugs &amp; diagnosing errors in Shiny applications</li>
+<li>Little-known ways to look under the covers</li>
+<li>How to debug problems in deployed apps</li>
+<li>Cheat code for IDE JavaScript debug tools</li>
+</ul>
+
+</article></slide><slide class=''><hgroup><h2>Outline</h2></hgroup><article  id="outline">
+
+<h3>We&#39;ll cover three main areas:</h3>
+
+<ul class = 'build'>
+<li>Debugging</li>
+<li>Tracing</li>
+<li>Errors</li>
+</ul>
+
+</article></slide><slide class='segue dark nobackground'><hgroup class = 'auto-fadein'><h2>Debugging</h2></hgroup><article  id="debugging">
+
+<p>&quot;Finding your bug is a process of confirming the many things that you believe are true — until you find one which is not true.&quot;</p>
+
+<p>&#8211; Norm Matloff</p>
+
+<p>Author of <em>The Art of R Programming</em> and <em>The Art of Debugging</em></p>
+
+</article></slide><slide class=''><hgroup><h2>Breakpoints</h2></hgroup><article  id="breakpoints">
+
+<img src='images/breakpoint.png' title=''/>
+
+<p><em>Breakpoint (armed)</em></p>
+
+</article></slide><slide class=''><hgroup><h2>Breakpoints</h2></hgroup><article  id="breakpoints-1">
+
+<img src='images/breakpoint-hit.png' title=''/>
+
+<p><em>Stepping after execution</em></p>
+
+</article></slide><slide class=''><hgroup><h2>Breakpoints</h2></hgroup><article  id="breakpoints-2" class="build">
+
+<h3>Pros</h3>
+
+<ul class = 'build'>
+<li>Doesn&#39;t change code</li>
+<li>Can inspect local values/stack</li>
+<li>Can step through following code</li>
+</ul>
+
+<h3>Cons</h3>
+
+<ul class = 'build'>
+<li>Only works inside <code>shinyServer</code></li>
+<li>Can&#39;t tell you why something isn&#39;t happening</li>
+<li>Interrupts program flow; not conditional</li>
+</ul>
+
+</article></slide><slide class=''><hgroup><h2>browser()</h2></hgroup><article  id="browser">
+
+<img src='images/browser.png' title=''/>
+
+</article></slide><slide class=''><hgroup><h2>Conditional breakpoint</h2></hgroup><article  id="conditional-breakpoint">
+
+<pre class = 'prettyprint lang-r'>if (input$bins &gt; 50)
+  browser()</pre>
+
+</article></slide><slide class=''><hgroup><h2>browser()</h2></hgroup><article  id="browser-1" class="build">
+
+<h3>Pros</h3>
+
+<ul class = 'build'>
+<li>Similar advantages to breakpoints</li>
+<li>Valid anywhere an R expression is valid</li>
+<li>Can be made conditional</li>
+</ul>
+
+<h3>Cons</h3>
+
+<ul class = 'build'>
+<li>Changes your code!</li>
+<li>Interrupts program flow</li>
+<li>Can&#39;t tell you why something isn&#39;t happening</li>
+</ul>
+
+</article></slide><slide class='segue dark nobackground'><hgroup class = 'auto-fadein'><h2>Tracing</h2></hgroup><article  id="tracing">
+
+<aside class='note'><section><p>In many cases it&#39;s difficult to diagnose a problem by halting execution, and instead you need to observe the system as it runs. This is particularly true of Shiny applications since the system doesn&#39;t run once through linearly as an R script does! We&#39;ll look at a number of ways to peek into the system while it&#39;s running.</p></section></aside>
+
+</article></slide><slide class=''><hgroup><h2>Showcase Mode</h2></hgroup><article  id="showcase-mode" class="build">
+
+<pre class = 'prettyprint lang-r'>runApp(..., display.mode=&quot;showcase&quot;)</pre>
+
+<img src='images/kmeans-showcase.gif' title=''/>
+
+</article></slide><slide class=''><hgroup><h2>Showcase Mode</h2></hgroup><article  id="showcase-mode-1" class="build">
+
+<h3>Pros</h3>
+
+<ul class = 'build'>
+<li>Very easy to use</li>
+<li>Helps find unnecessary or unexpected execution</li>
+</ul>
+
+<h3>Cons</h3>
+
+<ul class = 'build'>
+<li>Doesn&#39;t scale well to larger apps</li>
+<li>Won&#39;t show you <em>why</em> a reactive or observer executed</li>
+</ul>
+
+</article></slide><slide class=''><hgroup><h2>Reactive Log</h2></hgroup><article  id="reactive-log" class="build">
+
+<pre class = 'prettyprint lang-r'>options(shiny.reactlog=TRUE)
+runApp(...)
+showReactLog()</pre>
+
+<img src='images/reactlog.png' title=''/>
+
+</article></slide><slide class=''><hgroup><h2>Reactive Log</h2></hgroup><article  id="reactive-log-1" class="build">
+
+<h3>Pros</h3>
+
+<ul class = 'build'>
+<li><em>Can</em> show you why something isn&#39;t happening!</li>
+<li>No more thorough way of visualizing reactivity</li>
+</ul>
+
+<h3>Cons</h3>
+
+<ul class = 'build'>
+<li>Lots of data to sift through</li>
+<li>Not real-time</li>
+</ul>
+
+</article></slide><slide class=''><hgroup><h2>&quot;printf&quot; tracing</h2></hgroup><article  id="printf-tracing" class="build">
+
+<pre class = 'prettyprint lang-r'># generate bins based on input$bins from ui.R
+x    &lt;- faithful[, 2] 
+bins &lt;- seq(min(x), max(x), length.out = input$bins + 1)
+cat(file=stderr(), &quot;drawing histogram with&quot;, input$bins, &quot;bins\n&quot;)</pre>
+
+<pre >Listening on http://127.0.0.1:5757
+drawing histogram with 30 bins
+drawing histogram with 35 bins</pre>
+
+</article></slide><slide class=''><hgroup><h2>&quot;printf&quot; tracing</h2></hgroup><article  id="printf-tracing-1" class="build">
+
+<h3>Pros</h3>
+
+<ul class = 'build'>
+<li>Actual values at runtime, w/o modifying flow</li>
+<li>Only method that works after deployment</li>
+</ul>
+
+<h3>Cons</h3>
+
+<ul class = 'build'>
+<li>Limited to textual representation of values</li>
+<li>Modifies code</li>
+<li>Watch out for reactive side effects!</li>
+</ul>
+
+</article></slide><slide class=''><hgroup><h2>Tracing on Shinyapps.io</h2></hgroup><article  id="tracing-on-shinyapps.io" class="build">
+
+<pre class = 'prettyprint lang-r'>rsconnect::deployApp( ... )
+rsconnect::showLogs(streaming = TRUE)</pre>
+
+<pre >2016-01-29T01:26:12 shinyapps[77594]: 
+2016-01-29T01:26:12 shinyapps[77594]: Starting R with process ID: &#39;26&#39;
+2016-01-29T01:26:14 shinyapps[77594]: drawing histogram with 30 bins
+2016-01-29T01:26:14 shinyapps[77594]: drawing histogram with 35 bins</pre>
+
+</article></slide><slide class=''><hgroup><h2>Tracing in Shiny Server</h2></hgroup><article  id="tracing-in-shiny-server">
+
+<pre >tail -f /var/log/shiny-server/myapp-20160131-104403-8492.log</pre>
+
+<p>Only while R session is alive!</p>
+
+</article></slide><slide class=''><hgroup><h2>Client/server tracing</h2></hgroup><article  id="clientserver-tracing" class="build">
+
+<pre class = 'prettyprint lang-r'>options(shiny.trace = TRUE)</pre>
+
+<pre >SEND {&quot;config&quot;:{&quot;workerId&quot;:&quot;&quot;,&quot;sessionId&quot;:&quot;04531d50d12554bd981b24b9d3983cc4&quot;}}
+RECV {&quot;method&quot;:&quot;init&quot;,&quot;data&quot;:{&quot;bins&quot;:30,&quot;.clientdata_output_distPlot_width&quot;:610,
+      &quot;.clientdata_output_distPlot_height&quot;:400,&quot;.clientdata_output_distPlot_hidden&quot;:false,
+      &quot;.clientdata_pixelratio&quot;:1,&quot;.clientdata_url_protocol&quot;:&quot;http:&quot;,
+      &quot;.clientdata_url_hostname&quot;:&quot;127.0.0.1&quot;,&quot;.clientdata_url_port&quot;:&quot;5569&quot;,
+      &quot;.clientdata_url_pathname&quot;:&quot;/&quot;,&quot;.clientdata_url_search&quot;:&quot;&quot;,
+      &quot;.clientdata_url_hash_initial&quot;:&quot;&quot;,&quot;.clientdata_singletons&quot;:&quot;&quot;,
+      &quot;.clientdata_allowDataUriScheme&quot;:true}}</pre>
+
+</article></slide><slide class='segue dark nobackground'><hgroup class = 'auto-fadein'><h2>Error Handling</h2></hgroup><article  id="error-handling">
+
+</article></slide><slide class=''><hgroup><h2>Tracebacks</h2></hgroup><article  id="tracebacks" class="build">
+
+<pre class = 'prettyprint lang-r'>bins &lt;- seq(min(x), max(x), length.out = input$bins + 1)
+if (input$bins &gt; 40)
+  stop(&quot;too many bins&quot;)</pre>
+
+<pre >Warning: Error in renderPlot: too many bins
+Stack trace (innermost first):
+    76: renderPlot [server.R#20]
+    68: output$distPlot
+     1: shiny::runApp
+     
+     </pre>
+
+</article></slide><slide class=''><hgroup><h2>Full tracebacks</h2></hgroup><article  id="full-tracebacks" class="build">
+
+<pre class = 'prettyprint lang-r'>options(shiny.fullstacktrace = TRUE)</pre>
+
+<pre >Warning: Error in renderPlot: too many bins
+Stack trace (innermost first):
+    79: h
+    78: .handleSimpleError
+    77: stop
+    76: renderPlot [server.R#20]
+    75: ..stacktraceon..
+    74: func
+    ...
+    </pre>
+
+</article></slide><slide class=''><hgroup><h2>Pausing on errors</h2></hgroup><article  id="pausing-on-errors" class="build">
+
+<pre class = 'prettyprint lang-r'>options(shiny.error = browser)</pre>
+
+<img src='images/shiny-error.png' title=''/>
+
+</article></slide><slide class=''><hgroup><h2>JavaScript errors: Browser</h2></hgroup><article  id="javascript-errors-browser" class="build">
+
+<p>Right-click, inspect element, Console.</p>
+
+<img src='images/chrome-devtools.png' title=''/>
+
+</article></slide><slide class=''><hgroup><h2>JavaScript exceptions: first-chance</h2></hgroup><article  id="javascript-exceptions-first-chance">
+
+<img src='images/pauseoncaught.png' title=''/>
+
+</article></slide><slide class=''><hgroup><h2>JavaScript dev mode on OS X</h2></hgroup><article  id="javascript-dev-mode-on-os-x" class="build">
+
+<pre >defaults write org.rstudio.RStudio WebKitDeveloperExtras -bool true</pre>
+
+<img src='images/inspectelement.png' title=''/>
+
+</article></slide><slide class='segue dark nobackground'><hgroup class = 'auto-fadein'><h2>Wrapup</h2></hgroup><article  id="wrapup">
+
+<p>Any questions?</p></article></slide>
+
+
+  <slide class="backdrop"></slide>
+
+</slides>
+
+<script src="shiny-debugging_files/ioslides-13.5.1/js/modernizr.custom.45394.js"></script>
+<script src="shiny-debugging_files/ioslides-13.5.1/js/prettify/prettify.js"></script>
+<script src="shiny-debugging_files/ioslides-13.5.1/js/prettify/lang-r.js"></script>
+<script src="shiny-debugging_files/ioslides-13.5.1/js/prettify/lang-yaml.js"></script>
+<script src="shiny-debugging_files/ioslides-13.5.1/js/hammer.js"></script>
+<script src="shiny-debugging_files/ioslides-13.5.1/js/slide-controller.js"></script>
+<script src="shiny-debugging_files/ioslides-13.5.1/js/slide-deck.js"></script>
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+<!-- map slide visiblity events into shiny -->
+<script>
+  (function() {
+    if (window.jQuery) {
+       window.jQuery(document).on('slideleave', function(e) {
+         window.jQuery(e.target).trigger('hidden');
+      });
+       window.jQuery(document).on('slideenter', function(e) {
+         window.jQuery(e.target).trigger('shown');
+      });
+    }
+  })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,169 @@
+---
+title: Warm Up 2
+subtitle: Communicating between functions
+output: 
+  html_document:
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo = FALSE, message = FALSE}
+library(shiny)
+```
+
+
+There are several ways to share results between R functions, but one way is better than the rest. This becomes even more true when you embed the functions within a Shiny app. Complete these thought exercises for a quick warm up on the topic.
+
+# Thought Exercise 1
+
+In the code below, the function `foo()` creates an object named `x` and the function `bar()` attempts to add one to the object. Will the code work?
+
+```{r error=TRUE}
+foo <- function() {
+  x <- 1
+  y <- 2
+  z <- 3
+}
+
+bar <- function() {
+  x + 1
+}
+
+foo()
+bar()
+```
+
+No, and if you are familiar with R, you probably knew it. But *why* didn't the code work?
+
+The reason has something to do with environments. R stores each object that you create in an environment, and each environment is itself stored in an environment (known as the evironment's _parent environment_). Which environment R stores the object in depends on where you create the object.
+
+If you create an object at the command line, like `foo` or `bar`, R will store it in the _global environment_. However, R will do something different if you create an object in a function. R creates a new environment each time you run a function. It stores any objects that the function creates in this environment, safely out of the way where they will not overwrite anything in, for example, the global environment.
+
+If a function needs to use any objects, it will first look for them in this new environment that R creates when it runs the function. If it does not find the object there, it will look in the environment where the function was defined. Then it will look in the parent of that environment and so on until it finds the object or reaches the empty environment (the ancestral parent of all environments).
+
+You can now see why `bar()` cannot find `x`. `x` is stored in the new environmnt that R created when it fan `foo()` and `bar()` does not look for `x` in that environment.
+
+You can arrange for `bar()` to find `x` in several ways, but one pattern is superior to the rest. Let's examine several anti-patterns and then identify the correct pattern.
+
+# Thought Exercise 2
+
+The code below solves the `foo()` `bar()` problem by creating a new environment to store x in. It hard codes `foo()` and `bar()` to use this environment. Examine how the code works. Can you think of any downsides to this pattern?
+
+```{r}
+e <- new.env()
+
+foo <- function() {
+  e$x <- 1
+  e$y <- 2
+  e$z <- 3
+}
+
+bar <- function() {
+  e$x + 1
+}
+
+foo()
+bar()
+```
+
+Although this code works, it robs `foo()` and `bar()` of an important virtue: `foo()` and `bar()` are no longer self-contained. As a result, you cannot reason about `foo()` and `bar()` independently. For example, to debug `bar()` you will need to know where `e` comes from and check whether `e <- new.env()` was run earlier in the program. You will also need to know that `foo()` populates `e` with `x` and then check that `foo()` was run before `bar()`. Neither of these things are apparent from examining `bar()` alone. Moreover, you cannot change the internals of `foo()` without upsetting the behavior of the `bar()`.
+
+Functions that are not self-contained quickly become impossible to maintain as the size of your program---or programming team---grows. They are even worse to reason about when you place them in a Shiny app, where it is often difficult to control what will be run when and in what order.
+
+# Thought Exercise 3
+
+The code below also solves the `foo()` `bar()` problem, but it has a different drawback. Can you determine how the code works and spot its weakness? You may need to open the help page for `assign` by running `?assign`.
+
+```{r}
+foo <- function() {
+  assign("x", value = 1, pos = 1)
+  assign("y", value = 2, pos = 1)
+  assign("z", value = 3, pos = 1)
+}
+
+bar <- function() {
+  x + 1
+}
+
+foo()
+bar()
+```
+
+Here the `foo()` function stores `x` in the global environment, where `bar()` will find it. The code relies on a side effect. `foo()` invisibly places `x` in the global environment. This makes it hard to spot when and whether `x` is created if you are not familiar with `foo()` (a disadvantage when debugging `bar()`). And it makes it easy to inadvertantly copy over any object named `x` that already exists in the global environment. 
+
+If you were in habit of using this pattern, you would need to check that no other function in your program also assigns a variable named `x` to the global environment if you wish to avoid conflicts. Notice that to do this you would need to check more than the names of the objects you create in your program; you would need to check the body of code of each function in your program.
+
+In general, gratuitous side effects are a bad idea in Shiny apps; Shiny was not designed to use them.
+
+# Thought Exercise 4
+
+The last anti-pattern returns the name of the environment that `foo()` sotres `x` in, which lets `bar()` look up `foo()`. Why might this be a bad idea?
+
+```{r}
+foo <- function() {
+  x <- 1
+  y <- 2
+  z <- 3
+  environment()
+}
+
+bar <- function(e) {
+  x <- get("x", envir = e)
+  x + 1
+}
+
+env <- foo()
+bar(env)
+```
+
+This pattern avoids side-effects and is self-contained, but it reduces the reuseability of `bar()`. `bar()` can only work with functions that return an environment, and not many functions in R do. Moreover, those functions must also place an object named `x` in their environment.
+
+The pattern also makes `bar()` more difficult than necessary to reason about. Here `bar()` takes an environment as an input and returns a number. `bar()` will be easier to comprehend, and to chain with similar functions, if it takes a number as input and returns a number as output.
+
+# Thought Exercise 5
+
+Now that you've slogged through the anit-patterns, how would you solve the `foo()` `bar()` problem? Don't worry about being clever. The right answer is probably the one you've had in mind all along.
+
+The code below solves the `foo()` `bar()` problem in a simple way that avoids side effects and makes each function self-contained. Morevoer, code written this way is easy to understand and to debug.
+
+```{r}
+foo <- function() {
+  x <- 1
+  y <- 2
+  z <- 3
+  x
+}
+
+bar <- function(a) {
+  a + 1
+}
+
+q <- foo()
+bar(q)
+```
+
+To communicate with each other, the functions rely entirely on 
+
+1. Function arguments (as inputs)
+2. Return values (as outputs)
+
+This pattern is ideal because each of the arguments is visible from the top level of the program. You can see which inputs are used by inspecting how the function is called. The same is true for the outputs. You can see where the return value of each function is stored or passed.
+
+The pattern also lets each function operate independently of the others. It does not matter what happens in the body of `foo()` as long as it returns an `x` value for `bar()` to use.
+
+R is build around this pattern of communication. It is designed to let you easily compose functions that use this pattern. As a result, each of these popular R coding styles will work with the functions.
+
+```{r message = FALSE}
+q <- foo()
+bar(q)
+
+bar(foo())
+
+library(magrittr)
+foo() %>% bar()
+```
+
+This pattern of function writing also works best in Shiny apps. It minimizes the complexity of reactive programming and makes your code easy to understand. Whenever possible you should use this pattern within your apps. This includes when writing modules.

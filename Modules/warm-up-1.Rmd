@@ -1,0 +1,136 @@
+---
+title: Warm Up 1
+subtitle: Functions in Shiny Apps
+output: 
+  html_document:
+    theme: cosmo
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r echo = FALSE, message = FALSE}
+library(shiny)
+```
+
+
+When is the last time you thought about using functions in Shiny apps? Or about Shiny apps in general? Complete these four thought exercises for a quick warm up on the topic.
+
+# Thought Exercise 1
+
+The code below creates a Shiny app. Can you tell what the app will do? Will the app function correctly when you run the code?
+
+```{r eval = FALSE}
+ui <- fluidPage(
+  sliderInput("slider", "Slide Me", 0, 100, 1),
+  textOutput("num")
+)
+
+server <- function(input, output) {
+  output$num <- renderText({
+    input$slider
+  })
+}
+
+shinyApp(ui, server)
+```
+
+You bet it will! The app contains a simple slider, and displays the value of the slider in a reactive way. Now let's change things up a bit.
+
+# Thought Exercise 2
+
+This app (below) attempts to do the same thing as the app above, but it does it in a different way. Can you spot the change? It tries to use a function to create the slider input. 
+
+Will the app work correctly when you run the code? (If you are playing along at home, don't forget to stop the app above before running the app below).
+
+```{r eval = FALSE}
+slider <- function() {
+  sliderInput("slider", "Slide Me", 0, 100, 1)
+}
+
+ui <- fluidPage(
+  slider(),
+  textOutput("num")
+)
+
+server <- function(input, output) {
+  output$num <- renderText({input$slider})
+}
+
+shinyApp(ui, server)
+```
+
+If you said "Yes, that app will work," you are right. You can write functions that return html output for Shiny, as `slider()` does, and then place the output straight into your UI. 
+
+If you would like a function to return multiple elements for the UI, wrap the elements in `tagList()`, e.g.
+
+```{r eval = FALSE}
+elements <- function() {
+  tagList(
+    sliderInput("slider", "Slide Me", 0, 100, 1),
+    numericInput("number", "Number Me", 0)
+  )
+}
+```
+
+# Thought Exercise 3
+
+Now let's be ambitious, and add two sliders (and two outputs) to our app. Will this app work correctly when you run the code?
+
+```{r eval = FALSE}
+slider <- function() {
+  sliderInput("slider", "Slide Me", 0, 100, 1)
+}
+
+ui <- fluidPage(
+  slider(),
+  textOutput("num1"),
+  slider(),
+  textOutput("num2")
+)
+
+server <- function(input, output) {
+  output$num1 <- renderText({input$slider})
+  output$num2 <- renderText({input$slider})
+}
+
+shinyApp(ui, server)
+```
+
+No. The app is messed up. Don't believe me? Move the first slider. *Both* numbers change. Move the second slider. *Nothing* changes. 
+
+What has gone wrong? Each input object in a Shiny app, like a slider, needs a unique id. But our `slider()` function returns a slider with the id `"slider"` *every time you call it*. As a result, Shiny cannot track the values in a reasonable way.
+
+Surely there is a way to fix the app. Can you think of one?
+
+# Thought Exercise 4
+
+Here's one way (to try). Will this app work correctly when you run the code?
+
+```{r eval = FALSE}
+slider <- function(id) {
+  sliderInput(id, "Slide Me", 0, 100, 1)
+}
+
+ui <- fluidPage(
+  slider("slider1"),
+  textOutput("num1"),
+  slider("slider2"),
+  textOutput("num2")
+)
+
+server <- function(input, output) {
+  output$num1 <- renderText({input$slider1})
+  output$num2 <- renderText({input$slider2})
+}
+
+shinyApp(ui, server)
+```
+
+Yes, it will. Here we arrange for `slider()` to create a slider with a unique id each time we call it.
+
+As a bonus, we see that you can pass and use arguments in functions that create Shiny output. And why wouldn't you? That's what R functions are all about.
+
+We're now ready to tacke Shiny Modules. See you back at the [article](Big-apps.html).
+

@@ -1,0 +1,838 @@
+---
+title: "Principles of Reactivity"
+author: "Joe Cheng [&lt;joe@rstudio.com&gt;](mailto:joe@rstudio.com)"
+date: "\\#ShinyDevConf — January 30, 2016"
+output:
+  revealjs::revealjs_presentation:
+    theme: night
+    transition: none
+    self_contained: true
+    css: slides.css
+  beamer_presentation:
+    toc: false
+    incremental: false
+---
+
+## Warm up: Side effects
+
+---
+
+Functions can be executed for one or both of the following reasons:
+
+> 1. You want its return value.
+> 2. You want it to have **some other effect**.
+
+<div class="fragment">
+These are (a bit misleadingly) called _side effects_. Any effect that is not the return value is a side effect.
+</div>
+
+
+
+## Functions with side effects
+
+```r
+write.csv(...)
+
+plot(cars)
+
+print(x)
+
+httr.POST(...)
+
+alarm()
+```
+
+
+
+## More side effects
+
+```r
+# Sets a variable in a parent environment
+value <<- 10
+
+# Loads into global env by default
+source("functions.R")
+
+# Modifies the global search list
+library(dplyr)
+
+# Only if foo is an env, ref class, or R6
+foo$bar <- TRUE
+```
+
+
+
+## NOT side effects (when inside a function)
+
+```r
+# Modifying *local* variables
+value <- 10
+
+# Creating most kinds of objects
+list(a = 1, b = 2)
+
+# Data frames are pass-by-value in R so this is OK
+dataset <- dataset %>% filter(count > 3)
+
+# Most calculations
+a + 1
+summary(pressure)
+lm(speed ~ dist, data = cars)
+predict(wfit, interval = "prediction")
+```
+
+
+
+## Ehhh... Not side effects
+
+```r
+# Reading from disk
+readLines("data.csv")
+
+# Making HTTP GET requests
+httr.GET("https://api.example.com/data.json")
+
+# Reading global variables
+.Random.seed
+
+# Modifying the random seed... ehhhhhh...
+runif(10)
+```
+
+
+
+If executing your function/expression **leaves the state of the world a little different** than before it executed, **it has side effects**.
+
+But if "what happens in `func`, stays in `func`" (besides the return value), then it doesn't have side effects.
+
+
+
+## Side effect quiz
+
+For each function, write Yes if it has side effects, and No if not.
+
+
+
+## Question 1
+
+```r
+function(a, b) {
+  (b - a) / a
+}
+```
+
+
+
+## Question 2
+
+```r
+function(values) {
+  globalenv()$values <- values
+  values
+}
+```
+
+
+
+## Question 3
+
+```r
+function() {
+  options(digits.secs = 6)
+  as.character(Sys.time())
+}
+```
+
+
+
+## Question 4
+
+```r
+function(df) {
+  df$foo <- factor(df$foo)
+  df
+}
+```
+
+
+
+## Question 5
+
+```r
+function() {
+  readLines("~/data/raw.txt")
+}
+```
+
+
+
+## Question 6
+
+```r
+function(values) {
+  hist(values, plot = TRUE)
+}
+```
+
+
+
+## Question 7
+
+```r
+function() {
+  # Create temp file, and delete when function exits
+  filePath <- tempfile(fileext = ".png")
+  on.exit(file.unlink(filePath))
+
+  # Plot to the temp file as PNG image
+  png(filePath); plot(cars); dev.off()
+
+  # Return the contents of the temp file
+  readBin(filePath, "raw", n = file.info(filePath)$size)
+}
+```
+
+
+
+## Answers
+
+1. No
+2. Yes
+3. Yes
+4. No
+5. No
+6. Yes
+7. Mostly no
+
+
+
+---
+
+**Side effects make code harder to reason about,** since order of execution of different side-effecty functions can matter (in non-obvious ways).
+
+**But we still need them.** Without side effects, our programs are useless! (If a program executes but has no observable interactions with the world, you may as well have not executed it at all!)
+
+
+
+## Reactive programming
+
+<div class="notes">
+Reactivity can be your best friend—or your worst enemy. If you follow some rules of the road, and trust them, then you'll end up moving in the right direction.
+
+We haven't been very upfront about these rules; mostly I've disseminated them in replies to shiny-discuss threads. So even if you've been following Shiny development pretty closely, it's quite likely that some of the things I'll discuss today will be news to you.
+
+One of my top priorities in 2016 is to get the message out there about how to use reactivity properly, and it starts right here, at this conference, in this tutorial. So your feedback is *most* welcome after the tutorial.
+
+You ignore these principles at your peril! The temptation is especially strong among smart, experienced programmers. Resist it—at least until you've tried to do it the right way first. These aren't rules that people say but don't expect anyone to completely follow, like "write unit tests for every function", "floss after every meal", etc. These are more like, "bring your car to a stop when you come to a stop sign".
+
+If you've tried to do it the right way and still really want to break these rules, email me at joe@rstudio.com and let's talk about it. But please, do that before sinking weeks or months into your app, while I can still help you!
+</div>
+
+
+
+## Ladder of Enlightenment
+
+> 1. Made it halfway through the tutorial. Has used `output` and `input`.
+> 2. Made it entirely through the tutorial. Has used reactive expressions (`reactive()`).
+> 3. Has used `observe()` and/or `observeEvent()`. Has written reactive expressions that depend on other reactive expressions. Has used `isolate()` properly.
+> 4. Can say confidently when to use `reactive()` vs. `observe()`. Has used `invalidateLater`.
+> 5. Writes higher-order reactives (functions that have reactive expressions as input parameters and return values).
+> 6. Understands that reactive expressions are monads.
+
+<div class="notes">
+I'd like to propose a ladder of Shiny reactivity "enlightenment".
+
+Take a moment to read this list, then discuss with the people around you where you currently rank. Don't be shy or embarrassed if you're at level one or two, we're all here to learn! Go ahead, I'll give you three minutes.
+
+How many of you feel like you're at levels one or two?
+
+How many are at level three?
+
+How many are at level four?
+
+Anyone besides Hadley and Winston at five or six?
+
+So at level three, you can write quite complicated applications. And many of you have. This is a dangerous zone. Your apps generally work, but sometimes you struggle with why things are executing too much, or not enough. Each new feature you add to your app seems to increase the overall complexity superlinearly.
+
+Our goal today is to get everyone, or at least most of you, to level four. When you have a firm grasp on the reactive primitives we've built into Shiny, you can build complicated networks of reactive expressions and observers, with confidence. Combine that knowledge with the new modules feature, which Garrett will talk about tomorrow, and you've got all the tools you need to write large yet maintainable Shiny apps.
+
+Level five or six is where the real fun begins. We won't get there today, but if you're interested in learning more, please let me know! I'd love to talk to you. Maybe we can organize a group vchat or webinar or something, and eventually spin that in to an article or three.
+</div>
+
+
+
+## Exercise 1
+
+Open `Exercise_01.R` and complete the server function. Make the plot output show a simple plot of the first `nrows` rows of a built-in dataset.
+
+You have 5 minutes!
+
+Hint: `plot(head(cars, nrows))`
+
+<div class="notes">
+We'll get started with a really basic example app, just to get the juices flowing a little bit.
+
+Open up Exercise_01.R; it should be in your Files pane. You should see the beginnings of a Shiny app. The UI definition is complete, but the server function is blank. I want you to fill in that server function. Make the plot output show a simple plot of the first `nrows` rows of a built-in dataset of your choice. If you can't think of any, use `cars`.
+
+So basically, make the Shiny equivalent of this: `plot(head(cars, nrows))`
+
+I'll give you five minutes. That might be way too much time for some of you, but it'll give us a chance to shake out any technical issues. If you need help, talk to your neighbors, or flag down one of the TAs or myself. If you have extra time, get to know your neighbors a little more.
+</div>
+
+
+
+
+## Solution
+
+``` 
+output$plot <- renderPlot({
+  plot(head(cars, input$nrows))
+})
+```
+
+<div class="notes">
+OK, we're back. Hopefully your code looks something like this.
+
+How many of you ended up with this answer? Anyone come up with something different?
+
+What we don't want is something like this:
+</div>
+
+
+
+## Anti-solution
+
+``` 
+observe({
+  df <- head(cars, input$nrows)
+  output$plot <- renderPlot(plot(df))
+})
+```
+
+<div class="notes">
+This pattern of putting renderPlot inside of an observe, usually means the author has a fundamental misconception of what it means to assign a render code block to an output slot.
+</div>
+
+
+
+---
+
+`output$plot1 <- renderPlot(...)`
+
+> - **DOESN'T mean:** "Go update the output `"plot1"` with the result of this code."
+> - **DOES mean:** "This code is the _recipe_ that should be used to update the output `"plot1"`."
+
+<div class="notes">
+Historically, we've asked you to take it on faith that whenever `input$nrows` changes, any dependent outputs, reactive expressions, and observers will do the right thing. But how does Shiny know how the code is related? How does it know which outputs depend on which inputs, reactives, etc.?
+
+There are really two possibilities: _static_ analysis, where we'd examine your code, looking for reactive-looking things; and _runtime_ analysis, where we'd execute your code and see what happens.
+
+We do the latter. Shiny just executes your code and sees what happens. It eavesdrops to see what reactive values (like `input`) or reactive expressions your output reads, and whatever it reads is considered a "dependency". Any changes to one of those dependencies means the output is considered out-of-date, or "invalidated", and might need to be re-executed.
+</div>
+
+
+
+## Reactive expressions
+
+<div class="fragment">
+**Expressions** that are **reactive** <span class="fragment">(obviously)</span>
+</div>
+
+> - **Expression:** Code that _produces a value_
+> - **Reactive:** _Detects changes_ in anything reactive it reads
+
+
+
+---
+
+```r
+function(input, output, session) {
+  # When input$min_size or input$max_size change, large_diamonds
+  # will be notified about it.
+  large_diamonds <- reactive({
+    diamonds %>%
+      filter(carat >= input$min_size) %>%
+      filter(carat < input$max_size)
+  })
+  
+  # If that happens, large_diamonds will notify output$table.
+  output$table <- renderTable({
+    large_diamonds() %>% select(carat, price)
+  })
+```
+
+
+
+---
+
+```r
+  ... continued ...
+
+  # Reactive expressions can use other reactive expressions.
+  mean_price <- reactive({
+    mean(large_diamonds()$price)
+  })
+  
+  # large_diamonds and mean_price will both notify output$message
+  # of changes they detect.
+  output$message <- renderText({
+    paste0(nrow(large_diamonds()), " diamonds in that range, ",
+      "with an average price of $", mean_price())
+  })
+}
+```
+
+
+
+---
+
+```r
+function(input, output, session) {
+  
+  # This DOESN'T work.
+  large_diamonds <- diamonds %>%
+    filter(carat >= input$min_size) %>%
+    filter(carat < input$max_size)
+  
+  output$table <- renderTable({
+    large_diamonds %>% select(carat, price)
+  })
+}
+```
+
+`large_diamonds` would only be calculated once, as the session starts (i.e. as the page first loads in a browser).
+
+
+
+## Exercise 2
+
+Open up the file `Exercise_02.R`.
+
+There's a new `tableOutput("table")` in ui.R. Have it show the same data frame that is being plotted, using `renderTable`.
+
+**Make sure that the `head()` operation isn't performed more than once for each change to `input$nrows`.**
+
+You have 5 minutes.
+
+
+
+## Solution
+
+```r
+function(input, output, session) {
+
+  df <- reactive({
+    head(cars, input$nrows)
+  })
+  
+  output$plot <- renderPlot({
+    plot(df())
+  })
+  
+  output$table <- renderTable({
+    df()
+  })
+}
+```
+
+
+
+## Anti-solution 1
+
+``` 
+function(input, output, session) {
+
+  values <- reactiveValues(df = cars)
+  observe({
+    values$df <- head(cars, input$nrows)
+  })
+  
+  output$plot <- renderPlot({
+    plot(values$df)
+  })
+  
+  output$table <- renderTable({
+    values$df
+  })
+}
+```
+
+
+
+## Anti-solution 2
+
+``` 
+function(input, output, session) {
+
+  df <<- cars
+  observe({
+    df <<- head(cars, input$nrows)
+  })
+  
+  output$plot <- renderPlot({
+    plot(df)
+  })
+  
+  output$table <- renderTable({
+    df
+  })
+}
+```
+
+<div class="notes">
+Let's forget about that last one, since it doesn't work. What about the previous two? Let's talk about what they do. The first one uses a reactive expression to store the calculation. The second one creates a reactive values object and uses an observer to keep the value up-to-date. Who prefers the first approach? Who prefers the second?
+
+So we mostly agree that the first approach is superior. But why? It might feel like I'm just setting up strawmen, but I see this kind of code all the time on the shiny-discuss mailing list. It seems obvious when we lay it bare with a minimal example like this, but in the context of a more complicated app, it can be much trickier.
+
+We shouldn't take the second approach—but *why* shouldn't we take it? What's the first-principles reason to avoid this kind of code? We need some first-principles to build from so we can confidently answer these questions. You should be able to confidently answer these questions by the end of the tutorial.
+</div>
+
+
+
+## Observers
+
+
+
+---
+
+Observers are blocks of code that **perform actions**.
+
+They're executed in response to changing reactive values/expressions.
+
+They don't return a value.
+
+```r
+observe({
+  cat("The value of input$x is now ", input$x, "\n")
+})
+```
+
+
+
+## Observers come in two flavors
+
+> 1. **Implicit:** Depend on _all_ reactive values/expressions encountered during execution.  
+`observe({...})`  
+&nbsp;
+> 2. **Explicit:** Just depend on _specific_ reactive value/expression; ignore all others. (Also known as "event handler".)  
+`observeEvent(eventExpr, {...})`
+
+
+
+---
+
+```r
+function(input, output, session) {
+
+  # Executes immediately, and repeats whenever input$x changes.
+  observe({
+    cat("The value of input$x is now ", input$x, "\n")
+  })
+  
+  # Only executes when input$upload_button is pushed. Any reactive
+  # values/expressions encountered in the code block are treated
+  # as non-reactive values/expressions.
+  observeEvent(input$upload_button, {
+    httr::POST(server_url, jsonlite::toJSON(dataset()))
+  })
+}
+```
+
+
+
+## Exercise 3
+
+Open `Exercise_03.R`.
+
+Add server logic so that when the `input$save` button is pressed, the data is saved to a CSV file called `"data.csv"` in the current directory.
+
+You have 5 minutes!
+
+
+
+## Solution
+
+```r
+# Use observeEvent to tell Shiny what action to take
+# when input$save is clicked.
+observeEvent(input$save, {
+  write.csv(df(), "data.csv")
+})
+```
+
+
+
+## Reactive expressions vs. observers
+
+
+
+## `reactive()`
+
+> 1. It **can be called** and **returns a value**, like a function. Either the last expression, or `return()`.
+> 2. It's **lazy**. It doesn't execute its code until somebody calls it (even if its reactive dependencies have changed). Also like a function.
+> 3. It's **cached**. The first time it's called, it executes the code and saves the resulting value. Subsequent calls can skip the execution and just return the value.
+> 4. It's **reactive**. It is notified when its dependencies change. When that happens, it clears its cache and notifies it dependents.
+
+
+
+---
+
+```r
+r1 <- function() { runif(1) }
+r1()
+# [1] 0.8403573
+r1()
+# [1] 0.4590713
+r1()
+# [1] 0.9816089
+```
+
+<div class="fragment">
+```r
+r2 <- reactive({ runif(1) })
+r2()
+# [1] 0.5327107
+r2()
+# [1] 0.5327107
+r2()
+# [1] 0.5327107
+```
+</div>
+
+
+
+---
+
+The fact that reactive expressions are **lazy** and **cached**, is critical.
+
+<div class="fragment">
+It's **hard to reason about** when reactive expressions will execute their code—or whether they will be executed at all.
+</div>
+
+<div class="fragment">
+All Shiny guarantees is that **when you ask a reactive expression for an answer, you get an up-to-date one**.
+</div>
+
+
+
+---
+
+```r
+function(input, output, session) {
+  reactive({
+    # This code will never execute!
+    cat("The value of input$x is now ", input$x, "\n")
+  })
+}
+```
+
+
+
+## `observe()` / `observeEvent()`
+
+> 1. It **can't be called** and **doesn't return a value**. The value of the last expression will be thrown away, as will values passed to `return()`.
+> 2. It's **eager**. When its dependencies change, it executes right away.
+> 3. (Since it can't be called and doesn't have a return value, there's no notion of caching that applies here.)
+> 4. It's **reactive**. It is notified when its dependencies change, and when that happens it executes (not right at that instant, but ASAP).
+
+
+
+---
+
+`reactive()`          `observe()`
+--------------------- ---------------------
+Callable              Not callable
+Returns a value       No return value
+Lazy                  Eager
+Cached                _N/A_
+
+<div class="notes">
+Don't worry, there won't be a quiz on this. All of this is to point the way towards the two things you _do_ need to remember.
+
+This next slide is the reason I wanted to have this conference in the first place.
+
+Are you ready?
+</div>
+
+
+
+---
+
+- `reactive()` is for *calculating values, without side effects*.
+
+- `observe()` is for *performing actions, with side effects*.
+
+<div class="notes">
+This is what each of these is good for. Do not use an `observe` when calculating a value, and especially don't use `reactive` for performing actions with side effects.
+</div>
+
+
+
+---
+
+A **calculation** is a block of code where you don't care about whether the code actually executes—you just want the answer. Safe for caching. **Use `reactive()`.**
+
+An **action** is where you care very much that the code executes, and there is no answer (return value), only side effects. **Use `observe()`/`observeEvent()`.**
+
+<div class="fragment">
+(What if you want both an answer AND you want the code to execute? Refactor into two code chunks--separate the calculation from the action.)
+</div>
+
+
+
+---
+
+                  `reactive()`    `observe()`
+----------------- --------------- ---------------
+**Purpose**       Calculations    Actions
+**Side effects?** Forbidden       Allowed
+
+
+
+## An easy way to remember
+
+<div class="fragment">
+Keep your side effects  
+Outside of your reactives  
+Or I will kill you
+
+_—Joe Cheng_
+</div>
+
+
+
+## Reactive values
+
+A `reactiveValues` object is like an environment object or a named list: it stores name/value pairs. You get and set values using `$` or `[[name]]`.
+
+```r
+rv <- reactiveValues(a = 10)
+
+rv$a
+# [1] 10
+
+rv$a <- 20
+
+rv[["a"]]
+# [1] 20
+```
+
+`input` is one (read-only) example.
+
+
+
+## Exercise 4
+
+Open file `Exercise_04.R`.
+
+Modify the server function so that when the "rnorm" button is clicked, the plot shows a new batch of `rnorm(100)` values. When "runif" button is clicked, the plot should show a new batch of `runif(100)`.
+
+You have 15 minutes this time.
+
+
+
+## Solution
+
+```r
+function(input, output, session) {
+  v <- reactiveValues(data = runif(100))
+  
+  observeEvent(input$runif, {
+    v$data <- runif(100)
+  })
+  
+  observeEvent(input$rnorm, {
+    v$data <- rnorm(100)
+  })  
+  
+  output$plot <- renderPlot({
+    hist(v$data)
+  })
+}
+```
+
+<div class="notes">
+We've identified a number of cases where we should use a reactive expression instead of an `observe(Event)`/`reactiveValues` pairing. But there are cases where you simply must use the latter.
+
+There are essentially cases where inputs, outputs, and reactive expressions aren't powerful enough to natively express the computations you want to perform. So you have the "escape hatch" of `observe`/`reactiveValues`; you can do things that would otherwise be impossible, at the price of your code being harder to reason about and harder for the reactive framework to help you with.
+
+- Accumulating values over time, not just reacting to the latest one
+- Aggregating multiple reactive values/expressions into a single expression
+- Adding artificial latency into reactive values/expressions
+
+In general, we want to stick to reactive expressions whenever possible. And when we really need to, break out the big guns of `observe(Event)`/`reactiveValues`.
+</div>
+
+
+
+## Exercise 5: Challenge!
+
+`Exercise_05.R` contains a broken application. See if you can figure out how to fix it!
+
+Read the comments in the file for more details.
+
+
+<!---
+------
+
+Now we have covered three fundamental units of reactivity: state (reactiveValues), calculations (reactive expressions), actions (observers). With these three pieces, we now have our first complete picture of reactivity.
+
+> Reactivity tracks **changing state** so that the appropriate **actions** can be taken automatically. In doing so, we specify **calculations** that represent intermediate values. The ideal reactive program always executes **necessary actions** while performing the **minimum number of calculations**. The framework accomplishes this by automatically **tracking dependencies**.
+
+There are two pieces we haven't covered: `isolate` and `invalidateLater`. Once we have those two pieces, everything else is accomplished by combining these five primitives:
+
+- `reactiveValues()`
+- `reactive()`
+- `observe()`
+- `isolate()`
+- `invalidateLater()`
+
+Here are just some of the things we can accomplish.
+
+- `input`
+- `output`/`render`
+- `validate` and `req`
+- `debounce` (see gist)
+- `shinySignals` (https://github.com/hadley/shinySignals)
+- `invokeLater` (see gist)
+- `observeEvent`, `eventReactive`
+
+------
+
+### Exercise 6: Use eventReactive to restrict when calculations invalidate
+
+**Concept:** Tie expensive calculations to action buttons.
+
+**Exercise:**
+
+**Anti-pattern:** Using observeEvent and reactiveValues.
+
+Let's go back and take a look at `observe` and `observeEvent`. They're both used for actions, that is to say, side effects. They differ in that `observe` _implicitly_ takes a reactive dependency on everything it reads—a change in anything will cause it to re-execute—while `observeEvent` only re-executes based on what you _explicitly_ tell it to.
+
+- Action, implicit reactivity: `observe`
+- Action, explicit reactivity: `observeEvent`
+- Calculation, implicit reactivity: `reactive`
+- Calculation, explicit reactivity: `eventReactive`
+
+Similarly, `eventReactive` is for declaring calculations that only invalidate based on what you _explicitly_ tell it to. 99% of the time, it's going to be action buttons.
+
+### Exercise 7: Checking preconditions with req
+
+**Concept:** `req` is a lightweight way to achieve cascading stopping of executions, that aren't error conditions.
+
+**Exercise:**
+
+**Anti-pattern:**
+
+### invalidateLater
+
+**Concept:** Use for anything that might change in the "real world" but not have any inherent effect on reactivity on its own.
+
+**Exercise:**
+
+**Anti-pattern:** Just using non-reactive things and expecting them to behave reactively.
+
+### Higher order reactives (bonus)
+
+**Concept:** Use reactive expressions as the primary unit to compute on, when writing higher-order reactives. Inputs and outputs should both be reactive expressions.
+--->

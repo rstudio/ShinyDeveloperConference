@@ -1,0 +1,230 @@
+---
+title: Understanding UI
+subtitle: How to use Shiny Modules
+runtime: shiny
+output: 
+  html_document:
+    theme: cosmo
+    toc: TRUE
+    toc_float: TRUE
+---
+
+# Shiny UI
+
+A Shiny app is an HTML document with embedded components. When you write a shiny layout function, it returns HTML.
+
+There are (now) three ways to create the HTML Document.
+
+1. ui.R
+2. index.html
+3. html templates
+
+# ui.R
+
+Shiny comes with R functions that return html. These functions form a framework for building a complete Shiny app. Here's some common ones. Notice that they all return HTML.
+
+1. inputs
+2. outputs
+3. fluidPage
+4. SidebarLayout, SidebarPanel, MainPanel
+5. fluidRow, column
+6. Tabset panels, navbars etc.
+7. Other packages like shinydashboards and htmlwodgets provide more functions
+
+## Adding HTML, CSS, Scripts
+
+You can use `HTML()` or `tags` to add snippets of HTML to the ui.
+
+To add raw HTML, use the HTML function. HTML takes a character string and returns it as HTML (a special class of object in Shiny).
+
+```
+tags$div(
+  HTML("<strong>Raw HTML!</strong>")
+)
+## <div><strong>Raw HTML!</strong></div> 
+```
+
+Shiny will assume that the code you pass to HTML is correctly written HTML. Be sure to double check it.
+
+Every tag function will treat its arguments in a special way: it will treat named arguments as HTML attributes and unnamed arguments as HTML children.
+
+## Attributes
+
+A tag function will use each named argument to add an HTML attribute to the tag. The argument name becomes the attribute name, and the argument value becomes the attribute value. So for example, if you want to create a div with a class attribute, use:
+
+```
+tags$div(class = "header")
+## <div class="header"></div>
+```
+
+To add an attribute without a value, set the attribute to NA:
+
+```
+tags$div(class = "header", checked = NA)
+## <div class="header" checked></div>
+```
+
+## Children
+
+Each tag function will add unnamed arguments to your tag as HTML children. This addition lets you nest tags inside of each other (just as in HTML).
+
+```
+tags$div(class = "header", checked = NA,
+  tags$p("Ready to take the Shiny tutorial? If so"),
+  tags$a(href = "shiny.rstudio.com/tutorial", "Click Here!")
+)
+## <div class="header" checked>
+##   <p>Ready to take the Shiny tutorial? If so</p>
+##   <a href="shiny.rstudio.com/tutorial">Click Here!</a>
+## </div> 
+```
+
+Read more about `tags` [here](http://shiny.rstudio.com/articles/tag-glossary.html)
+
+You can use `includeHTML()` to add HTML blocks saved in a file.
+
+## CSS
+
+You can use `includeCSS()` to add CSS, or write CSS in the tags attributes.
+
+```{r eval = FALSE}
+shinyUI(fluidPage(
+
+  includeCSS("styles.css"),
+    
+  headerPanel("New Application"),
+  
+  sidebarPanel(
+    sliderInput("obs", "Number of observations:", 
+                min = 1, max = 1000, value = 500)
+  ),
+  
+  mainPanel(plotOutput("distPlot"))
+))
+```
+
+Read more about CSS in Shiny apps [here](http://shiny.rstudio.com/articles/css.html).
+
+You can use `includeScript()` to add scripts.
+
+# index.html
+
+Alternatively, you can write the html for the app with standard web development tools and save it as www/index.html.
+
+The `www` folder has a special distinction. Anything you put here will be shared with your users browser (presumably because the browser will need it to display the app).
+
+In this example, we re-write the front-end of the Tabsets application (`runExample("06_tabsets")`) using HTML directly. Here is the source code for the new user-interface definition:
+
+```
+<html>
+
+<head>
+  <script src="shared/jquery.js" type="text/javascript"></script>
+  <script src="shared/shiny.js" type="text/javascript"></script>
+  <link rel="stylesheet" type="text/css" href="shared/shiny.css"/> 
+</head>
+ 
+<body>
+  <h1>HTML UI</h1>
+ 
+  <p>
+    <label>Distribution type:</label><br />
+    <select name="dist">
+      <option value="norm">Normal</option>
+      <option value="unif">Uniform</option>
+      <option value="lnorm">Log-normal</option>
+      <option value="exp">Exponential</option>
+    </select> 
+  </p>
+ 
+  <p>
+    <label>Number of observations:</label><br /> 
+    <input type="number" name="n" value="500" min="1" max="1000" />
+  </p>
+ 
+  <pre id="summary" class="shiny-text-output"></pre> 
+  
+  <div id="plot" class="shiny-plot-output" 
+       style="width: 100%; height: 400px"></div> 
+  
+  <div id="table" class="shiny-html-output"></div>
+</body>
+
+</html>
+```
+
+There are few things to point out regarding how Shiny binds HTML elements back to inputs and outputs:
+
+HTML form elmements (in this case a select list and a number input) are bound to input slots using their name attribute.
+Output is rendered into HTML elements based on matching their id attribute to an output slot and by specifying the requisite css class for the element (in this case either shiny-text-output, shiny-plot-output, or shiny-html-output).
+With this technique you can create highly customized user-interfaces using whatever HTML, CSS, and JavaScript you like.
+
+All of the changes from the original Tabsets application were to the user-interface, so the server script remains the same.
+
+Read more [here](http://shiny.rstudio.com/articles/html-ui.html).
+
+# HTML templates
+
+The methods above sort of each do one thing well. ui.R makes it easy to insert shiny components, index.html makes it easy to build out the web styling.
+
+Winston has recently developed a new way to build apps that captures the strengths of each method. Starting with Shiny 0.13 (and htmltools 0.3), you can use HTML templates. Templates can be used to generate complete web pages, and they can also be used to generate the HTML for components that are included in a Shiny app.
+
+## What the structure of an app with a template looks like
+
+1. Write the html Template
+2. Reserve spaces for R code
+3. Call htmlTemplate in ui.R
+
+Some things to notice:
+
+The template is just plain HTML, except for the parts in `{{` and `}}`. The parts in those curly braces are R code which is evaluated when the template is processed.
+
+`headContent()` must be placed in the <head> section of the HTML, if this is a complete HTML page (as opposed to a component of a page, which we’ll discuss later). This tells Shiny that the various Shiny header code should be included here.
+
+In `ui.R`, `htmlTemplate()` is called with the named arguments button and slider. The values are used when evaluating the R code in the template.
+
+NOTE: Only the last thing in a code block is included in the HTML output. This is because of how the code blocks are evaluated; only the last thing is returned. If you have a code block with multiple elements that you want in the HTML, you can split it into multiple code blocks, or put the elements together with tagList().
+
+Once processed, the HTML produced will look something like this. You can see where the Shiny head content was inserted, and similarly, the actionButton and sliderInput HTML code.
+
+## Including other web dependencies
+
+A common reason for using templates is to include custom JavaScript or CSS files. You can add these just as you would with ordinary HTML, with `<script>` or `<link>` tags. For example, here’s a template that uses a custom JavaScript library.
+
+```
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="customlib.js"></script>
+    {{ headContent() }}
+  </head>
+  <body>
+    ...
+  </body>
+</html>
+```
+
+In this example, the file `customlib.js` would be expected to be in the `www/` subdirectory of the app, so that it could served to the client browser. You could also point to an absolute URL (starting with `//`, `http://`, or `https://`) served from another host. This is useful for using popular libraries served from a CDN.
+
+## College scorecard demo
+
+Templates for components
+In the examples above, HTML templates were used to generate an entire web page. They can also be used for components that are included in a larger application. For example, you could have this component.html and ui.R:
+
+```
+<!-- component.html -->
+<div>
+  This is an HTML template named <code>{{ name }}</code>.
+</div>
+```
+
+```{r eval = FALSE}
+bootstrapPage(
+  h2("HTML template example"),
+  htmlTemplate("component.html", name = "component1")
+)
+```
+
+When using a template as a component, don’t include headContent(), or a <html> or <head> tag. Just include the HTML which you want to be inserted in the web page.
+
+Read more [here](http://shiny.rstudio.com/articles/templates.html).
