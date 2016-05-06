@@ -7,14 +7,24 @@ ui <- fluidPage(
       numericInput("nrows", "Number of rows", 10)
     ),
     mainPanel(
-      plotOutput("plot")
+      plotOutput("plot"),
+      tableOutput("table")
     )
   )
 )
 
 server <- function(input, output, session) {
-  # Assignment: Plot the first input$nrows columns of a
-  # data frame of your choosing, using head() and plot()
+  # Assignment: Factor out the head(cars, input$nrows) so
+  # that the code isn't duplicated and the operation isn't
+  # performed twice for each change to input$nrows.
+  
+  output$plot <- renderPlot({
+    plot(head(cars, input$nrows))
+  })
+  
+  output$table <- renderTable({
+    head(cars, input$nrows)
+  })
 }
 
 shinyApp(ui, server)

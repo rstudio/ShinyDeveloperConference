@@ -7,23 +7,16 @@ ui <- fluidPage(
       numericInput("nrows", "Number of rows", 10)
     ),
     mainPanel(
-      plotOutput("plot"),
-      tableOutput("table")
+      plotOutput("plot")
     )
   )
 )
 
 server <- function(input, output, session) {
-  df <- reactive({
-    head(cars, input$nrows)
-  })
-  
-  output$plot <- renderPlot({
-    plot(df())
-  })
-  
-  output$table <- renderTable({
-    df()
+  # Don't do this!
+  observe({
+    df <- head(cars, input$nrows)
+    output$plot <- renderPlot(plot(df))
   })
 }
 

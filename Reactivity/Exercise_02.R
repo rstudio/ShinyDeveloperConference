@@ -1,29 +1,62 @@
 library(shiny)
 
 ui <- fluidPage(
-  h1("Example app"),
   sidebarLayout(
     sidebarPanel(
-      numericInput("nrows", "Number of rows", 10)
+      selectInput("xcol", "X variable", names(iris)),
+      selectInput("ycol", "Y variable", names(iris), names(iris)[2]),
+      numericInput("rows", "Rows to show", 10)
     ),
     mainPanel(
-      plotOutput("plot"),
-      tableOutput("table")
+      tabsetPanel(
+        tabPanel("Data", br(),
+          tableOutput("table")
+        ),
+        tabPanel("Summary", br(),
+          verbatimTextOutput("dataInfo"),
+          verbatimTextOutput("modelInfo")
+        ),
+        tabPanel("Plot", br(),
+          plotOutput("plot")
+        )
+      )
     )
   )
 )
 
 server <- function(input, output, session) {
-  # Assignment: Factor out the head(cars, input$nrows) so
-  # that the code isn't duplicated and the operation isn't
-  # performed twice for each change to input$nrows.
+  # Assignment: Remove duplication of `selected` and `model`
+  # code/calculations.
   
   output$plot <- renderPlot({
-    plot(head(cars, input$nrows))
+    
+    selected <- iris[, c(input$xcol, input$ycol)]
+    model <- lm(paste(input$ycol, "~", input$xcol), selected)
+    
+    plot(selected)
+    abline(model)
+  })
+  
+  output$modelInfo <- renderPrint({
+
+    selected <- iris[, c(input$xcol, input$ycol)]
+    model <- lm(paste(input$ycol, "~", input$xcol), selected)
+    
+    summary(model)
+  })
+  
+  output$dataInfo <- renderPrint({
+
+    selected <- iris[, c(input$xcol, input$ycol)]
+
+    summary(selected)
   })
   
   output$table <- renderTable({
-    head(cars, input$nrows)
+    
+    selected <- iris[, c(input$xcol, input$ycol)]
+    
+    head(selected, input$rows)
   })
 }
 

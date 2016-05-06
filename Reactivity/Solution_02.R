@@ -1,29 +1,62 @@
 library(shiny)
 
 ui <- fluidPage(
-  h1("Example app"),
   sidebarLayout(
     sidebarPanel(
-      numericInput("nrows", "Number of rows", 10)
+      selectInput("xcol", "X variable", names(iris)),
+      selectInput("ycol", "Y variable", names(iris), names(iris)[2]),
+      numericInput("rows", "Rows to show", 10)
     ),
     mainPanel(
-      plotOutput("plot"),
-      tableOutput("table")
+      tabsetPanel(
+        tabPanel("Data", br(),
+          tableOutput("table")
+        ),
+        tabPanel("Summary", br(),
+          verbatimTextOutput("dataInfo"),
+          verbatimTextOutput("modelInfo")
+        ),
+        tabPanel("Plot", br(),
+          plotOutput("plot")
+        )
+      )
     )
   )
 )
 
 server <- function(input, output, session) {
-  df <- reactive({
-    head(cars, input$nrows)
+  
+  # Introduce reactive expression for each calculated value
+
+  selected <- reactive({
+    iris[, c(input$xcol, input$ycol)]
   })
   
+  model <- reactive({
+    lm(paste(input$ycol, "~", input$xcol), selected())
+  })
+  
+  # And now the outputs can just use the reactive expressions
+    
   output$plot <- renderPlot({
-    plot(df())
+    
+    plot(selected())
+    abline(model())
+  })
+  
+  output$modelInfo <- renderPrint({
+
+    summary(model())
+  })
+  
+  output$dataInfo <- renderPrint({
+
+    summary(selected())
   })
   
   output$table <- renderTable({
-    df()
+    
+    head(selected(), input$rows)
   })
 }
 

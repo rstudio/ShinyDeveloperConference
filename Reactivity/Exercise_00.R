@@ -7,24 +7,14 @@ ui <- fluidPage(
       numericInput("nrows", "Number of rows", 10)
     ),
     mainPanel(
-      plotOutput("plot"),
-      tableOutput("table")
+      plotOutput("plot")
     )
   )
 )
 
 server <- function(input, output, session) {
-  df <- reactive({
-    head(cars, input$nrows)
-  })
-  
-  output$plot <- renderPlot({
-    plot(df())
-  })
-  
-  output$table <- renderTable({
-    df()
-  })
+  # Assignment: Plot the first input$nrows columns of a
+  # data frame of your choosing, using head() and plot()
 }
 
 shinyApp(ui, server)
