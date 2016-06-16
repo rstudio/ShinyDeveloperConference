@@ -9,7 +9,7 @@ dedupe <- function(r) {
     # values ignore assignment if the new value is identical
     # to the current value. If you didn't know that, you
     # could achieve the equivalent behavior with:
-    # if (identical(isolate(rv$value), r()))
+    # if (!identical(isolate(rv$value), r()))
     #   rv$value <- r()
     rv$value <- r()
   })
